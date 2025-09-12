@@ -1,23 +1,40 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
+import DriverAppLanding from './components/DriverAppLanding';
+import DriverDashboard from './components/DriverDashboard';
+import LoadWorkFlow from './components/LoadWorkFlow';  // Changed to match your file name
 import './App.css';
 
 function App() {
+  const [currentScreen, setCurrentScreen] = useState('landing');
+
+  const handleAuthSuccess = () => {
+    setCurrentScreen('dashboard');
+  };
+
+  const handleLoadAssigned = () => {
+    setCurrentScreen('loadWorkflow');
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentScreen('dashboard');
+  };
+
+  const renderCurrentScreen = () => {
+    switch(currentScreen) {
+      case 'landing':
+        return <DriverAppLanding onAuthSuccess={handleAuthSuccess} />;
+      case 'dashboard':
+        return <DriverDashboard onLoadAssigned={handleLoadAssigned} />;
+      case 'loadWorkflow':
+        return <LoadWorkFlow onBack={handleBackToDashboard} />;  // Updated component name
+      default:
+        return <DriverAppLanding onAuthSuccess={handleAuthSuccess} />;
+    }
+  };
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      {renderCurrentScreen()}
     </div>
   );
 }
