@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import logoImage from '../logos/FreightTrixHeader_Graphic.png';
 
-const LoadWorkflow = ({ onBack }) => {
-  const [currentStep, setCurrentStep] = useState('loadOffer'); // loadOffer, accepted, navigation, arrival, confirmed, compliance, rolling, rollingConfirmed, routePlan
+const LoadWorkflow = ({
+  currentStep: propCurrentStep,
+  loadData: propLoadData,
+  requirements: propRequirements,
+  onStepChange,
+  onComplete,
+  isEmbedded = false
+}) => {
+  const [currentStep, setCurrentStep] = useState(propCurrentStep || 'loadOffer');
   const [showPulse, setShowPulse] = useState(true);
-  const [requirements, setRequirements] = useState([
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [requirements, setRequirements] = useState(propRequirements || [
     { task: 'Load 1 pallet with reference #US3111U5', completed: false },
     { task: 'Take pictures of the cargo loaded and secured on your truck', completed: false },
     { task: 'Take picture of the trailer seal', completed: false },
@@ -12,44 +20,68 @@ const LoadWorkflow = ({ onBack }) => {
     { task: 'Shipper signs first and last name on paperwork with in and out time', completed: false }
   ]);
 
+  // Update internal state when props change
+  useEffect(() => {
+    if (propCurrentStep) setCurrentStep(propCurrentStep);
+  }, [propCurrentStep]);
+
+  useEffect(() => {
+    if (propRequirements) setRequirements(propRequirements);
+  }, [propRequirements]);
+
   useEffect(() => {
     const pulseInterval = setInterval(() => {
       setShowPulse(prev => !prev);
     }, 2000);
 
-    return () => clearInterval(pulseInterval);
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => {
+      clearInterval(pulseInterval);
+      clearInterval(timeInterval);
+    };
   }, []);
 
+  // Centralized step change handler
+  const handleStepChange = (newStep, additionalData = {}) => {
+    setCurrentStep(newStep);
+    if (onStepChange) {
+      onStepChange(newStep, additionalData);
+    }
+  };
+
   const handleAcceptLoad = () => {
-    setCurrentStep('accepted');
+    handleStepChange('accepted');
   };
 
   const handleDenyLoad = () => {
-    onBack(); // Return to main dashboard
+    handleStepChange('denied'); // Notify parent of denial
   };
 
   const handleStartGPS = () => {
-    setCurrentStep('arrival');
+    handleStepChange('arrival');
   };
 
   const handleArrivalResponse = (arrived) => {
     if (arrived) {
-      setCurrentStep('confirmed');
+      handleStepChange('confirmed');
     }
   };
 
   const handleCompliance = () => {
-    setCurrentStep('rolling');
+    handleStepChange('compliance');
   };
 
   const handleRollingResponse = (rolling) => {
     if (rolling) {
-      setCurrentStep('rollingConfirmed');
+      handleStepChange('rollingConfirmed');
     }
   };
 
   const handleViewRoutePlan = () => {
-    setCurrentStep('routePlan');
+    handleStepChange('routePlan');
   };
 
   const toggleRequirement = (index) => {
@@ -61,7 +93,17 @@ const LoadWorkflow = ({ onBack }) => {
   const renderLoadOffer = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Load Available</h2>
+        <div style={styles.priorityIndicator}>
+          <span style={styles.priorityText}>HIGH PRIORITY</span>
+          <div style={styles.urgencyTimer}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <circle cx="12" cy="12" r="10" stroke="#ff0040" strokeWidth="2"/>
+              <polyline points="12,6 12,12 16,14" stroke="#ff0040" strokeWidth="2"/>
+            </svg>
+            <span>Expires in 12:34</span>
+          </div>
+        </div>
+        <h2 style={styles.stepTitle}>Premium Load Available</h2>
         <div style={styles.qualificationContainer}>
           <div style={styles.qualificationItem}>
             <div style={styles.checkmark}>
@@ -79,30 +121,112 @@ const LoadWorkflow = ({ onBack }) => {
             </div>
             <span style={styles.qualificationText}>GDP Qualified Driver</span>
           </div>
+          <div style={styles.qualificationItem}>
+            <div style={styles.checkmark}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+            </div>
+            <span style={styles.qualificationText}>HAZMAT Certified</span>
+          </div>
         </div>
       </div>
 
       <div style={styles.loadDetailsCard}>
         <div style={styles.loadInfo}>
-          <h3 style={styles.loadTitle}>Load #FT-2024-1247</h3>
-          <p style={styles.loadRoute}>Chicago, IL → Denver, CO</p>
-          <div style={styles.loadMeta}>
-            <span style={styles.loadDistance}>1,003 miles</span>
-            <span style={styles.loadPayment}>$2,850</span>
+          <div style={styles.loadHeader}>
+            <h3 style={styles.loadTitle}>Load #FT-2024-1247</h3>
+            <div style={styles.loadType}>Temperature Controlled</div>
           </div>
-          <div style={styles.loadTiming}>
-            <p style={styles.timingText}>Pickup: Dec 13, 2024 • 8:00 AM</p>
-            <p style={styles.timingText}>Delivery: Dec 15, 2024 • 2:30 PM</p>
+          <div style={styles.routeDisplay}>
+            <div style={styles.locationBlock}>
+              <div style={styles.locationLabel}>PICKUP</div>
+              <div style={styles.locationCity}>Chicago, IL</div>
+              <div style={styles.locationAddress}>2150 W Fulton St</div>
+              <div style={styles.locationTime}>Dec 13, 2024 • 8:00 AM</div>
+            </div>
+            <div style={styles.routeArrow}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+            </div>
+            <div style={styles.locationBlock}>
+              <div style={styles.locationLabel}>DELIVERY</div>
+              <div style={styles.locationCity}>Denver, CO</div>
+              <div style={styles.locationAddress}>5500 E 58th Ave</div>
+              <div style={styles.locationTime}>Dec 15, 2024 • 2:30 PM</div>
+            </div>
+          </div>
+
+          <div style={styles.loadMetrics}>
+            <div style={styles.metricItem}>
+              <div style={styles.metricIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#00ffff" strokeWidth="2"/>
+                  <circle cx="12" cy="10" r="3" stroke="#00ffff" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div style={styles.metricInfo}>
+                <div style={styles.metricValue}>1,003 mi</div>
+                <div style={styles.metricLabel}>Total Distance</div>
+              </div>
+            </div>
+            <div style={styles.metricItem}>
+              <div style={styles.metricIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <line x1="12" y1="1" x2="12" y2="23" stroke="#00ff41" strokeWidth="2"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="#00ff41" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div style={styles.metricInfo}>
+                <div style={styles.metricValue}>$2,850</div>
+                <div style={styles.metricLabel}>Total Payment</div>
+              </div>
+            </div>
+            <div style={styles.metricItem}>
+              <div style={styles.metricIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#ff00ff" strokeWidth="2"/>
+                  <polyline points="12,6 12,12 16,14" stroke="#ff00ff" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div style={styles.metricInfo}>
+                <div style={styles.metricValue}>18 hrs</div>
+                <div style={styles.metricLabel}>Transit Time</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.cargoDetails}>
+            <h4 style={styles.cargoTitle}>Cargo Information</h4>
+            <div style={styles.cargoGrid}>
+              <div style={styles.cargoItem}>
+                <span style={styles.cargoLabel}>Weight:</span>
+                <span style={styles.cargoValue}>42,500 lbs</span>
+              </div>
+              <div style={styles.cargoItem}>
+                <span style={styles.cargoLabel}>Commodity:</span>
+                <span style={styles.cargoValue}>Pharmaceuticals</span>
+              </div>
+              <div style={styles.cargoItem}>
+                <span style={styles.cargoLabel}>Temperature:</span>
+                <span style={styles.cargoValue}>2-8°C</span>
+              </div>
+              <div style={styles.cargoItem}>
+                <span style={styles.cargoLabel}>Value:</span>
+                <span style={styles.cargoValue}>$2.3M</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <div style={styles.actionButtons}>
         <button style={styles.acceptButton} onClick={handleAcceptLoad}>
-          Accept
+          Accept Load
         </button>
         <button style={styles.denyButton} onClick={handleDenyLoad}>
-          Deny
+          Decline
         </button>
       </div>
     </div>
@@ -111,11 +235,27 @@ const LoadWorkflow = ({ onBack }) => {
   const renderAccepted = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Load has been accepted</h2>
+        <div style={styles.successIndicator}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="12" fill="#00ff41"/>
+            <path d="m9 12 2 2 4-4" stroke="#0d0208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span style={styles.successText}>Load Accepted</span>
+        </div>
+        <h2 style={styles.stepTitle}>Pre-Pickup Requirements</h2>
+        <div style={styles.timeStamp}>
+          Accepted: {currentTime.toLocaleTimeString()} • Load #FT-2024-1247
+        </div>
       </div>
 
       <div style={styles.requirementsCard}>
-        <h3 style={styles.requirementsTitle}>Requirements</h3>
+        <div style={styles.progressHeader}>
+          <h3 style={styles.requirementsTitle}>Compliance Checklist</h3>
+          <div style={styles.completionBadge}>
+            {requirements.filter(req => req.completed).length}/{requirements.length} Complete
+          </div>
+        </div>
+        
         <div style={styles.requirementsList}>
           {requirements.map((req, index) => (
             <div key={index} style={styles.requirementItem} onClick={() => toggleRequirement(index)}>
@@ -130,17 +270,40 @@ const LoadWorkflow = ({ onBack }) => {
                   </svg>
                 )}
               </div>
-              <span style={{
-                ...styles.requirementText,
-                color: req.completed ? '#e0e0e0' : '#999'
-              }}>{req.task}</span>
+              <div style={styles.requirementContent}>
+                <span style={{
+                  ...styles.requirementText,
+                  color: req.completed ? '#e0e0e0' : '#999'
+                }}>{req.task}</span>
+                {req.completed && (
+                  <div style={styles.completedTime}>
+                    Completed: {currentTime.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
+
+        <div style={styles.additionalInfo}>
+          <div style={styles.infoItem}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <circle cx="12" cy="12" r="10" stroke="#00ffff" strokeWidth="2"/>
+              <path d="M12 6v6l4 2" stroke="#00ffff" strokeWidth="2"/>
+            </svg>
+            <span>Pickup window: 7:30 AM - 8:30 AM</span>
+          </div>
+          <div style={styles.infoItem}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="#ff00ff" strokeWidth="2"/>
+            </svg>
+            <span>Contact: Sarah Johnson (312) 555-0147</span>
+          </div>
+        </div>
       </div>
 
-      <button style={styles.continueButton} onClick={() => setCurrentStep('navigation')}>
-        Continue to Pickup
+      <button style={styles.continueButton} onClick={() => handleStepChange('navigation')}>
+        Proceed to Navigation
       </button>
     </div>
   );
@@ -148,19 +311,44 @@ const LoadWorkflow = ({ onBack }) => {
   const renderNavigation = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Go to pickup location</h2>
-        <div style={styles.addressContainer}>
-          <p style={styles.addressText}>2150 W Fulton St</p>
-          <p style={styles.addressText}>Chicago, IL 60612</p>
+        <h2 style={styles.stepTitle}>Navigate to Pickup Location</h2>
+        <div style={styles.navigationInfo}>
+          <div style={styles.addressContainer}>
+            <div style={styles.facilityName}>FreshNet Solutions</div>
+            <p style={styles.addressText}>2150 W Fulton St</p>
+            <p style={styles.addressText}>Chicago, IL 60612</p>
+          </div>
+          <div style={styles.etaInfo}>
+            <div style={styles.etaLabel}>ETA</div>
+            <div style={styles.etaTime}>23 min</div>
+            <div style={styles.trafficStatus}>Light traffic</div>
+          </div>
         </div>
       </div>
 
-      <button style={styles.gpsButton} onClick={handleStartGPS}>
-        Start GPS
-      </button>
+      <div style={styles.navigationControls}>
+        <button style={styles.gpsButton} onClick={handleStartGPS}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <polygon points="3 11 22 2 13 21 11 13 3 11" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Start Navigation
+        </button>
+        <button style={styles.callButton}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Call Shipper
+        </button>
+      </div>
 
       <div style={styles.mapCard}>
-        <h3 style={styles.mapTitle}>Geofenced Route</h3>
+        <div style={styles.mapHeader}>
+          <h3 style={styles.mapTitle}>Live Route Tracking</h3>
+          <div style={styles.gpsStatus}>
+            <div style={styles.gpsIndicator}></div>
+            <span>GPS Active</span>
+          </div>
+        </div>
         <div style={styles.mapContainer}>
           <svg width="100%" height="200" viewBox="0 0 400 200" style={styles.routeSvg}>
             {/* Geofenced area */}
@@ -169,9 +357,14 @@ const LoadWorkflow = ({ onBack }) => {
             {/* Route line */}
             <path d="M 20 100 Q 100 50 200 100 T 380 100" stroke="#00ff41" strokeWidth="4" fill="none"/>
             
+            {/* Traffic indicators */}
+            <circle cx="150" cy="80" r="3" fill="#00ff41"/>
+            <circle cx="250" cy="120" r="3" fill="#ffff00"/>
+            <circle cx="320" cy="100" r="3" fill="#00ff41"/>
+            
             {/* Origin marker */}
             <circle cx="20" cy="100" r="8" fill="#00ffff"/>
-            <text x="20" y="130" textAnchor="middle" fill="#00ffff" fontSize="10">Start</text>
+            <text x="20" y="130" textAnchor="middle" fill="#00ffff" fontSize="10">Current</text>
             
             {/* Destination marker */}
             <circle cx="380" cy="100" r="8" fill="#ff00ff"/>
@@ -183,7 +376,23 @@ const LoadWorkflow = ({ onBack }) => {
             </circle>
           </svg>
         </div>
-        <p style={styles.geofenceText}>Stay within the highlighted geofenced area</p>
+        
+        <div style={styles.routeDetails}>
+          <div style={styles.routeMetric}>
+            <span style={styles.metricLabel}>Distance:</span>
+            <span style={styles.metricValue}>14.7 mi</span>
+          </div>
+          <div style={styles.routeMetric}>
+            <span style={styles.metricLabel}>Duration:</span>
+            <span style={styles.metricValue}>23 min</span>
+          </div>
+          <div style={styles.routeMetric}>
+            <span style={styles.metricLabel}>Traffic:</span>
+            <span style={styles.metricValue}>Light</span>
+          </div>
+        </div>
+        
+        <p style={styles.geofenceText}>Stay within the highlighted geofenced area for optimal tracking</p>
       </div>
     </div>
   );
@@ -192,21 +401,60 @@ const LoadWorkflow = ({ onBack }) => {
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
         <div style={styles.notificationBadge}>
-          <span style={styles.notificationNumber}>1</span>
+          <span style={styles.notificationNumber}>!</span>
         </div>
-        <h2 style={styles.stepTitle}>Notification</h2>
+        <h2 style={styles.stepTitle}>Geofence Detection</h2>
+        <div style={styles.locationConfirm}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#00ff41" strokeWidth="2"/>
+            <circle cx="12" cy="10" r="3" stroke="#00ff41" strokeWidth="2"/>
+          </svg>
+          <span>Located at FreshNet Solutions</span>
+        </div>
+      </div>
+
+      <div style={styles.arrivalCard}>
+        <div style={styles.facilityInfo}>
+          <h3 style={styles.facilityTitle}>FreshNet Solutions</h3>
+          <div style={styles.facilityDetails}>
+            <p style={styles.addressText}>2150 W Fulton St, Chicago, IL 60612</p>
+            <div style={styles.arrivalTime}>
+              Arrived: {currentTime.toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.checkInPrompt}>
+          <div style={styles.promptIcon}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#00ff41" strokeWidth="2"/>
+              <path d="M12 6v6l4 2" stroke="#00ff41" strokeWidth="2"/>
+            </svg>
+          </div>
+          <div style={styles.promptText}>
+            <h4 style={styles.promptTitle}>Confirm On-Site Arrival</h4>
+            <p style={styles.promptDesc}>System detected you've arrived at the pickup location. Please confirm your on-site status to begin the loading process.</p>
+          </div>
+        </div>
       </div>
 
       <div style={styles.questionCard}>
-        <p style={styles.questionText}>Have you arrived on site for pickup at FNS in Chicago IL?</p>
+        <p style={styles.questionText}>Have you arrived on site for pickup at FreshNet Solutions in Chicago, IL?</p>
       </div>
 
       <div style={styles.actionButtons}>
         <button style={styles.acceptButton} onClick={() => handleArrivalResponse(true)}>
-          Yes
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <polyline points="20,6 9,17 4,12" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Yes, I'm On-Site
         </button>
         <button style={styles.denyButton} onClick={() => handleArrivalResponse(false)}>
-          No
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2"/>
+            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Not Yet
         </button>
       </div>
     </div>
@@ -215,15 +463,55 @@ const LoadWorkflow = ({ onBack }) => {
   const renderConfirmed = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Confirmed!</h2>
+        <div style={styles.successIndicator}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="12" fill="#00ff41"/>
+            <path d="m9 12 2 2 4-4" stroke="#0d0208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span style={styles.successText}>Arrival Confirmed</span>
+        </div>
+        <h2 style={styles.stepTitle}>Check-In Complete</h2>
       </div>
 
       <div style={styles.confirmationCard}>
-        <p style={styles.confirmationText}>Onsite for pickup at 0800 has been logged</p>
+        <div style={styles.confirmationDetails}>
+          <div style={styles.confirmationItem}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <circle cx="12" cy="12" r="10" stroke="#00ff41" strokeWidth="2"/>
+              <path d="M12 6v6l4 2" stroke="#00ff41" strokeWidth="2"/>
+            </svg>
+            <span>On-site arrival logged at {currentTime.toLocaleTimeString()}</span>
+          </div>
+          <div style={styles.confirmationItem}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#00ffff" strokeWidth="2"/>
+              <circle cx="12" cy="10" r="3" stroke="#00ffff" strokeWidth="2"/>
+            </svg>
+            <span>GPS coordinates: 41.8881°N, 87.6298°W</span>
+          </div>
+          <div style={styles.confirmationItem}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+              <rect x="2" y="3" width="20" height="14" rx="2" stroke="#ff00ff" strokeWidth="2"/>
+              <line x1="8" y1="21" x2="16" y2="21" stroke="#ff00ff" strokeWidth="2"/>
+              <line x1="12" y1="17" x2="12" y2="21" stroke="#ff00ff" strokeWidth="2"/>
+            </svg>
+            <span>Load #FT-2024-1247 status updated</span>
+          </div>
+        </div>
+        
+        <div style={styles.nextStepsInfo}>
+          <h4 style={styles.nextStepsTitle}>Next Steps</h4>
+          <ul style={styles.nextStepsList}>
+            <li>Proceed to loading dock #7</li>
+            <li>Present BOL to facility manager</li>
+            <li>Complete compliance checklist</li>
+            <li>Document cargo loading process</li>
+          </ul>
+        </div>
       </div>
 
       <button style={styles.continueButton} onClick={handleCompliance}>
-        View Compliance Checklist
+        Begin Loading Process
       </button>
     </div>
   );
@@ -231,24 +519,76 @@ const LoadWorkflow = ({ onBack }) => {
   const renderCompliance = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Compliance Checklist</h2>
+        <h2 style={styles.stepTitle}>Loading Compliance Protocol</h2>
+        <div style={styles.facilityBadge}>
+          <span>Loading Dock #7 • FreshNet Solutions</span>
+        </div>
       </div>
 
       <div style={styles.complianceCard}>
-        {requirements.map((req, index) => (
-          <div key={index} style={styles.complianceItem}>
-            <div style={styles.complianceCheckmark}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <div style={styles.complianceHeader}>
+          <h3 style={styles.complianceTitle}>Required Documentation & Procedures</h3>
+          <div style={styles.complianceProgress}>
+            {requirements.filter(req => req.completed).length}/{requirements.length} Verified
+          </div>
+        </div>
+
+        <div style={styles.complianceList}>
+          {requirements.map((req, index) => (
+            <div key={index} style={styles.complianceItem}>
+              <div style={styles.complianceCheckmark}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div style={styles.complianceContent}>
+                <span style={styles.complianceText}>{req.task}</span>
+                <div style={styles.complianceDetails}>
+                  {index === 0 && <span>Weight: 2,850 lbs • Dimensions: 48"x40"x60"</span>}
+                  {index === 1 && <span>High-resolution photos required for insurance</span>}
+                  {index === 2 && <span>Seal #: TMP-847592 • Verified integrity</span>}
+                  {index === 3 && <span>Maintain 2-8°C throughout transport</span>}
+                  {index === 4 && <span>Sarah Johnson • In: 08:15 • Out: 09:42</span>}
+                </div>
+              </div>
+              <div style={styles.statusBadge}>Verified</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.additionalChecks}>
+          <h4 style={styles.additionalTitle}>Additional Verifications</h4>
+          <div style={styles.checkGrid}>
+            <div style={styles.checkItem}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
               </svg>
+              <span>Chain of custody verified</span>
             </div>
-            <span style={styles.complianceText}>{req.task}</span>
+            <div style={styles.checkItem}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Temperature monitoring active</span>
+            </div>
+            <div style={styles.checkItem}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Load securement inspected</span>
+            </div>
+            <div style={styles.checkItem}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Bill of lading signed</span>
+            </div>
           </div>
-        ))}
+        </div>
       </div>
 
-      <button style={styles.continueButton} onClick={() => setCurrentStep('rolling')}>
-        Complete Checklist
+      <button style={styles.continueButton} onClick={() => handleStepChange('rolling')}>
+        Complete Loading Protocol
       </button>
     </div>
   );
@@ -256,19 +596,102 @@ const LoadWorkflow = ({ onBack }) => {
   const renderRolling = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Ready to Depart</h2>
+        <h2 style={styles.stepTitle}>Departure Clearance</h2>
+        <div style={styles.departureInfo}>
+          <div style={styles.loadTime}>
+            Loading completed: {currentTime.toLocaleTimeString()}
+          </div>
+          <div style={styles.duration}>
+            Total loading time: 1h 27m
+          </div>
+        </div>
+      </div>
+
+      <div style={styles.departureCard}>
+        <div style={styles.preFlightChecks}>
+          <h3 style={styles.preFlightTitle}>Pre-Departure Verification</h3>
+          <div style={styles.checksList}>
+            <div style={styles.systemCheck}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Trailer door sealed and locked</span>
+              <div style={styles.checkValue}>Seal #TMP-847592</div>
+            </div>
+            <div style={styles.systemCheck}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Temperature system operational</span>
+              <div style={styles.checkValue}>4.2°C Stable</div>
+            </div>
+            <div style={styles.systemCheck}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>GPS tracking active</span>
+              <div style={styles.checkValue}>Signal Strong</div>
+            </div>
+            <div style={styles.systemCheck}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="20,6 9,17 4,12" stroke="#00ff41" strokeWidth="2"/>
+              </svg>
+              <span>Documentation complete</span>
+              <div style={styles.checkValue}>All verified</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.cargoSummary}>
+          <h4 style={styles.summaryTitle}>Load Summary</h4>
+          <div style={styles.summaryGrid}>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Cargo:</span>
+              <span style={styles.summaryValue}>1 pallet pharmaceuticals</span>
+            </div>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Reference:</span>
+              <span style={styles.summaryValue}>#US3111U5</span>
+            </div>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Weight:</span>
+              <span style={styles.summaryValue}>2,850 lbs</span>
+            </div>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Value:</span>
+              <span style={styles.summaryValue}>$2.3M insured</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={styles.questionCard}>
-        <p style={styles.questionText}>Loaded and rolling?</p>
+        <div style={styles.questionHeader}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="1" y="3" width="15" height="13" stroke="#00ff41" strokeWidth="2"/>
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" stroke="#00ff41" strokeWidth="2"/>
+            <circle cx="5.5" cy="18.5" r="2.5" stroke="#00ff41" strokeWidth="2"/>
+            <circle cx="18.5" cy="18.5" r="2.5" stroke="#00ff41" strokeWidth="2"/>
+          </svg>
+          <span style={styles.questionTitle}>Ready for Departure?</span>
+        </div>
+        <p style={styles.questionText}>Confirm that you are loaded, secured, and ready to depart for Denver, CO</p>
       </div>
 
       <div style={styles.actionButtons}>
         <button style={styles.acceptButton} onClick={() => handleRollingResponse(true)}>
-          Yes
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <polygon points="3 11 22 2 13 21 11 13 3 11" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Begin Transit
         </button>
         <button style={styles.denyButton} onClick={() => handleRollingResponse(false)}>
-          No
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+            <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2"/>
+            <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Hold Position
         </button>
       </div>
     </div>
@@ -277,15 +700,63 @@ const LoadWorkflow = ({ onBack }) => {
   const renderRollingConfirmed = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Confirmed!</h2>
+        <div style={styles.successIndicator}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <polygon points="3 11 22 2 13 21 11 13 3 11" stroke="#00ff41" strokeWidth="2"/>
+          </svg>
+          <span style={styles.successText}>En Route</span>
+        </div>
+        <h2 style={styles.stepTitle}>Transit Initiated</h2>
       </div>
 
-      <div style={styles.confirmationCard}>
-        <p style={styles.confirmationText}>Loaded and rolling with 1 pallet for reference #US3111U5</p>
+      <div style={styles.transitCard}>
+        <div style={styles.transitStatus}>
+          <h3 style={styles.transitTitle}>Active Transport Status</h3>
+          <div style={styles.statusIndicators}>
+            <div style={styles.indicator}>
+              <div style={styles.indicatorLight}></div>
+              <span>GPS Tracking Active</span>
+            </div>
+            <div style={styles.indicator}>
+              <div style={styles.indicatorLight}></div>
+              <span>Temperature Monitoring</span>
+            </div>
+            <div style={styles.indicator}>
+              <div style={styles.indicatorLight}></div>
+              <span>Route Optimization</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.transitDetails}>
+          <div style={styles.transitInfo}>
+            <div style={styles.infoBlock}>
+              <div style={styles.infoLabel}>Departure Time</div>
+              <div style={styles.infoValue}>{currentTime.toLocaleTimeString()}</div>
+            </div>
+            <div style={styles.infoBlock}>
+              <div style={styles.infoLabel}>Expected Arrival</div>
+              <div style={styles.infoValue}>Dec 15, 2:30 PM</div>
+            </div>
+            <div style={styles.infoBlock}>
+              <div style={styles.infoLabel}>Current Temp</div>
+              <div style={styles.infoValue}>4.2°C ✓</div>
+            </div>
+          </div>
+          
+          <div style={styles.cargoConfirmation}>
+            <p style={styles.confirmationText}>
+              Loaded and rolling with 1 pallet for reference #US3111U5
+            </p>
+            <div style={styles.cargoSpecs}>
+              <span>Weight: 2,850 lbs • Value: $2.3M • Temperature Controlled</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <button style={styles.continueButton} onClick={handleViewRoutePlan}>
-        View Route Plan
+        View Full Route Plan
       </button>
     </div>
   );
@@ -293,62 +764,151 @@ const LoadWorkflow = ({ onBack }) => {
   const renderRoutePlan = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Route Plan</h2>
+        <h2 style={styles.stepTitle}>Intelligent Route Management</h2>
+        <div style={styles.routeStats}>
+          <div style={styles.routeStat}>
+            <span style={styles.statValue}>1,003 mi</span>
+            <span style={styles.statLabel}>Total Distance</span>
+          </div>
+          <div style={styles.routeStat}>
+            <span style={styles.statValue}>18h 24m</span>
+            <span style={styles.statLabel}>Est. Transit</span>
+          </div>
+          <div style={styles.routeStat}>
+            <span style={styles.statValue}>4 stops</span>
+            <span style={styles.statLabel}>Approved</span>
+          </div>
+        </div>
       </div>
 
       <div style={styles.routePlanCard}>
+        <div style={styles.mapHeader}>
+          <h3 style={styles.mapTitle}>AI-Optimized Route with Geofencing</h3>
+          <div style={styles.optimizationBadge}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#00ff41" strokeWidth="2"/>
+              <path d="M2 17l10 5 10-5" stroke="#00ff41" strokeWidth="2"/>
+              <path d="M2 12l10 5 10-5" stroke="#00ff41" strokeWidth="2"/>
+            </svg>
+            <span>AI Optimized</span>
+          </div>
+        </div>
+        
         <div style={styles.mapContainer}>
-          <svg width="100%" height="250" viewBox="0 0 400 250" style={styles.routeSvg}>
-            {/* Main geofenced route */}
-            <path d="M 20 125 Q 100 75 200 125 T 380 125" stroke="#00ff41" strokeWidth="4" fill="none"/>
-            <path d="M 15 120 Q 95 70 195 120 T 385 120" stroke="rgba(0, 255, 65, 0.3)" strokeWidth="20" fill="none"/>
+          <svg width="100%" height="280" viewBox="0 0 400 280" style={styles.routeSvg}>
+            {/* Main geofenced route corridor */}
+            <path d="M 20 140 Q 100 90 200 140 T 380 140" stroke="rgba(0, 255, 65, 0.3)" strokeWidth="30" fill="none"/>
+            <path d="M 20 140 Q 100 90 200 140 T 380 140" stroke="#00ff41" strokeWidth="4" fill="none"/>
+            
+            {/* Waypoints */}
+            <circle cx="120" cy="110" r="6" fill="#00ffff"/>
+            <text x="120" y="100" textAnchor="middle" fill="#00ffff" fontSize="8">Rest Area</text>
+            
+            <circle cx="200" cy="140" r="6" fill="#00ffff"/>
+            <text x="200" y="130" textAnchor="middle" fill="#00ffff" fontSize="8">Fuel Stop</text>
+            
+            <circle cx="280" cy="165" r="6" fill="#00ffff"/>
+            <text x="280" y="155" textAnchor="middle" fill="#00ffff" fontSize="8">Inspection</text>
             
             {/* Red zones (avoid stopping) */}
-            <circle cx="120" cy="80" r="25" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
-            <text x="120" y="85" textAnchor="middle" fill="#ff0040" fontSize="8">AVOID</text>
+            <circle cx="150" cy="80" r="20" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
+            <text x="150" y="85" textAnchor="middle" fill="#ff0040" fontSize="7">HIGH THEFT</text>
             
-            <circle cx="280" cy="160" r="25" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
-            <text x="280" y="165" textAnchor="middle" fill="#ff0040" fontSize="8">AVOID</text>
+            <circle cx="320" cy="190" r="20" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
+            <text x="320" y="195" textAnchor="middle" fill="#ff0040" fontSize="7">RESTRICTED</text>
             
             {/* Green zones (approved stops) */}
-            <rect x="180" y="40" width="40" height="25" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
-            <text x="200" y="55" textAnchor="middle" fill="#00ff41" fontSize="7">FUEL</text>
+            <rect x="90" y="190" width="60" height="20" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
+            <text x="120" y="203" textAnchor="middle" fill="#00ff41" fontSize="7">TRUCK STOP</text>
             
-            <rect x="320" y="180" width="40" height="25" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
-            <text x="340" y="195" textAnchor="middle" fill="#00ff41" fontSize="7">YARD</text>
+            <rect x="240" y="70" width="50" height="20" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
+            <text x="265" y="83" textAnchor="middle" fill="#00ff41" fontSize="7">SERVICE</text>
             
             {/* Origin and destination */}
-            <circle cx="20" cy="125" r="8" fill="#00ffff"/>
-            <text x="20" y="150" textAnchor="middle" fill="#00ffff" fontSize="10">Chicago</text>
+            <circle cx="20" cy="140" r="10" fill="#00ffff"/>
+            <text x="20" y="170" textAnchor="middle" fill="#00ffff" fontSize="10">Chicago</text>
+            <text x="20" y="180" textAnchor="middle" fill="#00ffff" fontSize="8">Origin</text>
             
-            <circle cx="380" cy="125" r="8" fill="#ff00ff"/>
-            <text x="380" y="150" textAnchor="middle" fill="#ff00ff" fontSize="10">Denver</text>
+            <circle cx="380" cy="140" r="10" fill="#ff00ff"/>
+            <text x="380" y="170" textAnchor="middle" fill="#ff00ff" fontSize="10">Denver</text>
+            <text x="380" y="180" textAnchor="middle" fill="#ff00ff" fontSize="8">Destination</text>
             
             {/* Current truck position */}
-            <circle cx="40" cy="125" r="6" fill="#00ff41">
-              <animate attributeName="r" values="6;9;6" dur="2s" repeatCount="indefinite"/>
+            <circle cx="50" cy="135" r="7" fill="#00ff41">
+              <animate attributeName="r" values="7;10;7" dur="2s" repeatCount="indefinite"/>
             </circle>
+            <text x="50" y="125" textAnchor="middle" fill="#00ff41" fontSize="8">YOU</text>
+            
+            {/* Weather indicators */}
+            <g transform="translate(160, 45)">
+              <circle cx="0" cy="0" r="8" fill="rgba(255, 255, 0, 0.3)" stroke="#ffff00" strokeWidth="1"/>
+              <text x="0" y="15" textAnchor="middle" fill="#ffff00" fontSize="6">RAIN</text>
+            </g>
           </svg>
         </div>
 
+        <div style={styles.routeAnalytics}>
+          <div style={styles.analyticsSection}>
+            <h4 style={styles.analyticsTitle}>Route Intelligence</h4>
+            <div style={styles.analyticsGrid}>
+              <div style={styles.analyticsItem}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#ffff00" strokeWidth="2"/>
+                </svg>
+                <span>Weather: Light rain expected near mile 400</span>
+              </div>
+              <div style={styles.analyticsItem}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+                  <circle cx="12" cy="12" r="10" stroke="#ff0040" strokeWidth="2"/>
+                  <line x1="15" y1="9" x2="9" y2="15" stroke="#ff0040" strokeWidth="2"/>
+                  <line x1="9" y1="9" x2="15" y2="15" stroke="#ff0040" strokeWidth="2"/>
+                </svg>
+                <span>Avoid: High-theft zones marked in red</span>
+              </div>
+              <div style={styles.analyticsItem}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+                  <circle cx="12" cy="12" r="10" stroke="#00ff41" strokeWidth="2"/>
+                  <path d="M12 6v6l4 2" stroke="#00ff41" strokeWidth="2"/>
+                </svg>
+                <span>Optimal fuel stops identified for cost savings</span>
+              </div>
+              <div style={styles.analyticsItem}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
+                  <rect x="2" y="3" width="20" height="14" rx="2" stroke="#00ffff" strokeWidth="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21" stroke="#00ffff" strokeWidth="2"/>
+                  <line x1="12" y1="17" x2="12" y2="21" stroke="#00ffff" strokeWidth="2"/>
+                </svg>
+                <span>Real-time tracking for customer updates</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div style={styles.legendContainer}>
-          <div style={styles.legendItem}>
-            <div style={{...styles.legendColor, backgroundColor: 'rgba(0, 255, 65, 0.3)'}}></div>
-            <span style={styles.legendText}>Geofenced Route</span>
-          </div>
-          <div style={styles.legendItem}>
-            <div style={{...styles.legendColor, backgroundColor: 'rgba(255, 0, 64, 0.3)'}}></div>
-            <span style={styles.legendText}>Avoid Stopping</span>
-          </div>
-          <div style={styles.legendItem}>
-            <div style={{...styles.legendColor, backgroundColor: 'rgba(0, 255, 65, 0.3)', border: '2px solid #00ff41'}}></div>
-            <span style={styles.legendText}>Approved Stops</span>
+          <h4 style={styles.legendTitle}>Route Legend</h4>
+          <div style={styles.legendGrid}>
+            <div style={styles.legendItem}>
+              <div style={{...styles.legendColor, backgroundColor: 'rgba(0, 255, 65, 0.3)'}}></div>
+              <span style={styles.legendText}>Geofenced Corridor</span>
+            </div>
+            <div style={styles.legendItem}>
+              <div style={{...styles.legendColor, backgroundColor: 'rgba(255, 0, 64, 0.3)'}}></div>
+              <span style={styles.legendText}>Restricted Zones</span>
+            </div>
+            <div style={styles.legendItem}>
+              <div style={{...styles.legendColor, backgroundColor: 'rgba(0, 255, 65, 0.3)', border: '2px solid #00ff41'}}></div>
+              <span style={styles.legendText}>Approved Stops</span>
+            </div>
+            <div style={styles.legendItem}>
+              <div style={{...styles.legendColor, backgroundColor: '#00ffff'}}></div>
+              <span style={styles.legendText}>Planned Waypoints</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <button style={styles.continueButton} onClick={onBack}>
-        Complete Journey
+      <button style={styles.continueButton} onClick={onComplete}>
+        Begin Monitored Transit
       </button>
     </div>
   );
@@ -393,7 +953,7 @@ const LoadWorkflow = ({ onBack }) => {
       {/* Header */}
       <div style={styles.header}>
         <img src={logoImage} alt="FreighTrix" style={styles.logoImage} />
-        <div style={styles.headerTitle}>Driver App</div>
+        <div style={styles.headerTitle}>Load Management</div>
       </div>
 
       {/* Main Content */}
@@ -401,42 +961,46 @@ const LoadWorkflow = ({ onBack }) => {
         {renderCurrentStep()}
       </div>
 
-      {/* Bottom Navigation - Simplified */}
-      <div style={styles.bottomNav}>
-        <div style={styles.navItem}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="#00ff41" strokeWidth="2"/>
-            <polyline points="9,22 9,12 15,12 15,22" stroke="#00ff41" strokeWidth="2"/>
-          </svg>
-          <span style={styles.navLabel}>Home</span>
+      {/* Conditionally render bottom nav */}
+      {!isEmbedded && (
+        <div style={styles.bottomNav}>
+          <div style={styles.navItem}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <rect x="1" y="3" width="15" height="13" stroke="#00ff41" strokeWidth="2"/>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" stroke="#00ff41" strokeWidth="2"/>
+              <circle cx="5.5" cy="18.5" r="2.5" stroke="#00ff41" strokeWidth="2"/>
+              <circle cx="18.5" cy="18.5" r="2.5" stroke="#00ff41" strokeWidth="2"/>
+            </svg>
+            <span style={styles.navLabel}>Load</span>
+          </div>
+          <div style={styles.navItem}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <polygon points="3 6 9 9 15 15 21 12 21 18 15 21 9 15 3 12" stroke="#666" strokeWidth="2"/>
+            </svg>
+            <span style={{...styles.navLabel, color: '#666'}}>Route</span>
+          </div>
+          <div style={styles.navItem}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="3" width="20" height="14" rx="2" stroke="#666" strokeWidth="2"/>
+            </svg>
+            <span style={{...styles.navLabel, color: '#666'}}>Shipments</span>
+          </div>
+          <div style={styles.navItem}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <polyline points="9 11 12 14 22 4" stroke="#666" strokeWidth="2"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#666" strokeWidth="2"/>
+            </svg>
+            <span style={{...styles.navLabel, color: '#666'}}>Compliance</span>
+          </div>
+          <div style={styles.navItem}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="3" stroke="#666" strokeWidth="2"/>
+              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="#666" strokeWidth="2"/>
+            </svg>
+            <span style={{...styles.navLabel, color: '#666'}}>Settings</span>
+          </div>
         </div>
-        <div style={styles.navItem}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <polygon points="3 6 9 9 15 15 21 12 21 18 15 21 9 15 3 12" stroke="#666" strokeWidth="2"/>
-          </svg>
-          <span style={{...styles.navLabel, color: '#666'}}>Route</span>
-        </div>
-        <div style={styles.navItem}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="3" width="20" height="14" rx="2" stroke="#666" strokeWidth="2"/>
-          </svg>
-          <span style={{...styles.navLabel, color: '#666'}}>Shipments</span>
-        </div>
-        <div style={styles.navItem}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <polyline points="9 11 12 14 22 4" stroke="#666" strokeWidth="2"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#666" strokeWidth="2"/>
-          </svg>
-          <span style={{...styles.navLabel, color: '#666'}}>Compliance</span>
-        </div>
-        <div style={styles.navItem}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="#666" strokeWidth="2"/>
-            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="#666" strokeWidth="2"/>
-          </svg>
-          <span style={{...styles.navLabel, color: '#666'}}>Settings</span>
-        </div>
-      </div>
+      )}
 
       <style>
         {`
@@ -456,6 +1020,11 @@ const LoadWorkflow = ({ onBack }) => {
           @keyframes pulse {
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.05); opacity: 0.8; }
+          }
+
+          @keyframes glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(0, 255, 65, 0.6); }
           }
 
           /* Hide scrollbars while keeping scroll functionality */
@@ -561,12 +1130,50 @@ const styles = {
     width: '100%',
     position: 'relative',
   },
+  priorityIndicator: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
+  priorityText: {
+    backgroundColor: '#ff0040',
+    color: 'white',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+  },
+  urgencyTimer: {
+    display: 'flex',
+    alignItems: 'center',
+    color: '#ff0040',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+  },
   stepTitle: {
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '1.3rem',
     fontWeight: 600,
     margin: '0 0 1rem 0',
     color: '#00ff41',
+  },
+  successIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    marginBottom: '1rem',
+  },
+  successText: {
+    color: '#00ff41',
+    fontWeight: 600,
+    fontFamily: 'Orbitron, sans-serif',
+  },
+  timeStamp: {
+    color: '#999',
+    fontSize: '0.8rem',
+    marginTop: '0.5rem',
   },
   notificationBadge: {
     position: 'absolute',
@@ -585,6 +1192,14 @@ const styles = {
     color: 'white',
     fontWeight: 'bold',
     fontSize: '1rem',
+  },
+  locationConfirm: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#00ff41',
+    fontWeight: 500,
+    marginTop: '0.5rem',
   },
   qualificationContainer: {
     display: 'flex',
@@ -620,40 +1235,127 @@ const styles = {
   loadInfo: {
     textAlign: 'center',
   },
+  loadHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+  },
   loadTitle: {
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '1.1rem',
     fontWeight: 600,
     color: '#00ffff',
-    margin: '0 0 0.5rem 0',
+    margin: 0,
   },
-  loadRoute: {
-    fontSize: '1.1rem',
-    color: '#e0e0e0',
-    margin: '0 0 1rem 0',
+  loadType: {
+    backgroundColor: 'rgba(255, 0, 255, 0.2)',
+    color: '#ff00ff',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
     fontWeight: 500,
   },
-  loadMeta: {
+  routeDisplay: {
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '1rem',
+    marginBottom: '1.5rem',
+    gap: '1rem',
   },
-  loadDistance: {
+  locationBlock: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  locationLabel: {
+    fontSize: '0.7rem',
     color: '#999',
-    fontSize: '0.9rem',
+    fontWeight: 600,
+    marginBottom: '0.25rem',
   },
-  loadPayment: {
+  locationCity: {
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#e0e0e0',
+    marginBottom: '0.25rem',
+  },
+  locationAddress: {
+    fontSize: '0.8rem',
+    color: '#999',
+    marginBottom: '0.25rem',
+  },
+  locationTime: {
+    fontSize: '0.8rem',
+    color: '#ff00ff',
+    fontWeight: 500,
+  },
+  routeArrow: {
     color: '#00ff41',
+  },
+  loadMetrics: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
+  metricItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '1rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  metricIcon: {
+    marginBottom: '0.5rem',
+  },
+  metricInfo: {
+    textAlign: 'center',
+  },
+  metricValue: {
     fontSize: '1.1rem',
     fontWeight: 600,
+    color: '#e0e0e0',
+    marginBottom: '0.25rem',
   },
-  loadTiming: {
-    textAlign: 'left',
+  metricLabel: {
+    fontSize: '0.8rem',
+    color: '#999',
   },
-  timingText: {
-    color: '#ff00ff',
+  cargoDetails: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  cargoTitle: {
+    fontFamily: 'Orbitron, sans-serif',
     fontSize: '0.9rem',
-    margin: '0.25rem 0',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+    textAlign: 'center',
+  },
+  cargoGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
+  },
+  cargoItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cargoLabel: {
+    color: '#999',
+    fontSize: '0.8rem',
+  },
+  cargoValue: {
+    color: '#e0e0e0',
+    fontWeight: 500,
+    fontSize: '0.8rem',
   },
   actionButtons: {
     display: 'flex',
@@ -672,6 +1374,9 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   denyButton: {
     flex: 1,
@@ -684,6 +1389,9 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   continueButton: {
     backgroundColor: '#00ff41',
@@ -698,69 +1406,79 @@ const styles = {
     width: '100%',
     maxWidth: '300px',
   },
+  navigationInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '1rem',
+  },
+  addressContainer: {
+    textAlign: 'left',
+  },
+  facilityName: {
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ffff',
+    marginBottom: '0.25rem',
+  },
+  addressText: {
+    fontSize: '0.9rem',
+    color: '#e0e0e0',
+    margin: '0.1rem 0',
+  },
+  etaInfo: {
+    textAlign: 'right',
+  },
+  etaLabel: {
+    fontSize: '0.7rem',
+    color: '#999',
+    marginBottom: '0.25rem',
+  },
+  etaTime: {
+    fontSize: '1.2rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    marginBottom: '0.25rem',
+  },
+  trafficStatus: {
+    fontSize: '0.8rem',
+    color: '#00ff41',
+  },
+  navigationControls: {
+    display: 'flex',
+    gap: '1rem',
+    width: '100%',
+    maxWidth: '400px',
+  },
   gpsButton: {
+    flex: 2,
     backgroundColor: '#00ffff',
     color: '#0d0208',
     border: 'none',
     borderRadius: '8px',
-    padding: '1rem 2rem',
-    fontSize: '1.1rem',
+    padding: '1rem',
+    fontSize: '1rem',
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    width: '100%',
-    maxWidth: '300px',
-  },
-  requirementsCard: {
-    backgroundColor: 'rgba(0, 255, 65, 0.03)',
-    border: '1px solid rgba(0, 255, 65, 0.15)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    width: '100%',
-  },
-  requirementsTitle: {
-    fontFamily: 'Orbitron, sans-serif',
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: '#00ff41',
-    margin: '0 0 1rem 0',
-    textAlign: 'center',
-  },
-  requirementsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  requirementItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    cursor: 'pointer',
-    padding: '0.5rem',
-    borderRadius: '8px',
-    transition: 'all 0.3s ease',
-  },
-  requirementCheckbox: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: '2px',
   },
-  requirementText: {
+  callButton: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    color: '#ff00ff',
+    border: '2px solid #ff00ff',
+    borderRadius: '8px',
+    padding: '1rem',
     fontSize: '0.9rem',
-    lineHeight: '1.4',
-  },
-  addressContainer: {
-    textAlign: 'center',
-  },
-  addressText: {
-    fontSize: '1.1rem',
-    color: '#e0e0e0',
-    margin: '0.25rem 0',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mapCard: {
     backgroundColor: 'rgba(0, 255, 65, 0.03)',
@@ -769,13 +1487,32 @@ const styles = {
     padding: '1.5rem',
     width: '100%',
   },
+  mapHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
   mapTitle: {
     fontFamily: 'Orbitron, sans-serif',
     fontSize: '1rem',
     fontWeight: 600,
     color: '#00ff41',
-    margin: '0 0 1rem 0',
-    textAlign: 'center',
+    margin: 0,
+  },
+  gpsStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    color: '#00ff41',
+    fontSize: '0.8rem',
+  },
+  gpsIndicator: {
+    width: '8px',
+    height: '8px',
+    backgroundColor: '#00ff41',
+    borderRadius: '50%',
+    animation: 'pulse 2s ease-in-out infinite',
   },
   mapContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -788,11 +1525,77 @@ const styles = {
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: '8px',
   },
+  routeDetails: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    marginBottom: '1rem',
+  },
+  routeMetric: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.25rem',
+  },
   geofenceText: {
     textAlign: 'center',
     color: '#999',
-    fontSize: '0.9rem',
+    fontSize: '0.8rem',
     margin: 0,
+  },
+  arrivalCard: {
+    backgroundColor: 'rgba(0, 255, 65, 0.03)',
+    border: '1px solid rgba(0, 255, 65, 0.15)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    width: '100%',
+  },
+  facilityInfo: {
+    textAlign: 'center',
+    marginBottom: '1.5rem',
+  },
+  facilityTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    color: '#00ffff',
+    margin: '0 0 0.5rem 0',
+  },
+  facilityDetails: {
+    color: '#e0e0e0',
+  },
+  arrivalTime: {
+    color: '#00ff41',
+    fontSize: '0.9rem',
+    fontWeight: 500,
+    marginTop: '0.5rem',
+  },
+  checkInPrompt: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    padding: '1rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  promptIcon: {
+    flexShrink: 0,
+  },
+  promptText: {
+    flex: 1,
+  },
+  promptTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.5rem 0',
+  },
+  promptDesc: {
+    fontSize: '0.9rem',
+    color: '#e0e0e0',
+    margin: 0,
+    lineHeight: '1.4',
   },
   questionCard: {
     backgroundColor: 'rgba(0, 255, 65, 0.03)',
@@ -802,8 +1605,21 @@ const styles = {
     width: '100%',
     textAlign: 'center',
   },
+  questionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    marginBottom: '1rem',
+  },
+  questionTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+  },
   questionText: {
-    fontSize: '1.2rem',
+    fontSize: '1rem',
     color: '#e0e0e0',
     margin: 0,
     lineHeight: '1.4',
@@ -812,15 +1628,126 @@ const styles = {
     backgroundColor: 'rgba(0, 255, 65, 0.03)',
     border: '1px solid rgba(0, 255, 65, 0.15)',
     borderRadius: '12px',
-    padding: '2rem',
+    padding: '1.5rem',
     width: '100%',
-    textAlign: 'center',
   },
-  confirmationText: {
-    fontSize: '1.1rem',
+  confirmationDetails: {
+    marginBottom: '1.5rem',
+  },
+  confirmationItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    marginBottom: '0.75rem',
+    fontSize: '0.9rem',
     color: '#e0e0e0',
+  },
+  nextStepsInfo: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  nextStepsTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+  },
+  nextStepsList: {
     margin: 0,
+    paddingLeft: '1.5rem',
+    color: '#e0e0e0',
+  },
+  facilityBadge: {
+    backgroundColor: 'rgba(0, 255, 255, 0.2)',
+    color: '#00ffff',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    marginTop: '0.5rem',
+  },
+  requirementsCard: {
+    backgroundColor: 'rgba(0, 255, 65, 0.03)',
+    border: '1px solid rgba(0, 255, 65, 0.15)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    width: '100%',
+  },
+  progressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
+  requirementsTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: 0,
+  },
+  completionBadge: {
+    backgroundColor: 'rgba(0, 255, 65, 0.2)',
+    color: '#00ff41',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+  },
+  requirementsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
+  requirementItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    cursor: 'pointer',
+    padding: '0.75rem',
+    borderRadius: '8px',
+    transition: 'all 0.3s ease',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  requirementCheckbox: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: '2px',
+  },
+  requirementContent: {
+    flex: 1,
+  },
+  requirementText: {
+    fontSize: '0.9rem',
     lineHeight: '1.4',
+    marginBottom: '0.25rem',
+  },
+  completedTime: {
+    fontSize: '0.7rem',
+    color: '#00ff41',
+    fontStyle: 'italic',
+  },
+  additionalInfo: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  infoItem: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '0.8rem',
+    color: '#e0e0e0',
+    marginBottom: '0.5rem',
   },
   complianceCard: {
     backgroundColor: 'rgba(0, 255, 65, 0.03)',
@@ -829,11 +1756,41 @@ const styles = {
     padding: '1.5rem',
     width: '100%',
   },
+  complianceHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+  },
+  complianceTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: 0,
+  },
+  complianceProgress: {
+    backgroundColor: 'rgba(0, 255, 65, 0.2)',
+    color: '#00ff41',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+  },
+  complianceList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
   complianceItem: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '0.75rem',
-    marginBottom: '1rem',
+    padding: '1rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
   },
   complianceCheckmark: {
     width: '20px',
@@ -846,10 +1803,209 @@ const styles = {
     flexShrink: 0,
     marginTop: '2px',
   },
+  complianceContent: {
+    flex: 1,
+  },
   complianceText: {
     fontSize: '0.9rem',
     color: '#e0e0e0',
     lineHeight: '1.4',
+    marginBottom: '0.25rem',
+  },
+  complianceDetails: {
+    fontSize: '0.7rem',
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  statusBadge: {
+    backgroundColor: '#00ff41',
+    color: '#0d0208',
+    padding: '0.25rem 0.5rem',
+    borderRadius: '12px',
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    alignSelf: 'flex-start',
+  },
+  additionalChecks: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  additionalTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+  },
+  checkGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
+  },
+  checkItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.8rem',
+    color: '#e0e0e0',
+  },
+  departureCard: {
+    backgroundColor: 'rgba(0, 255, 65, 0.03)',
+    border: '1px solid rgba(0, 255, 65, 0.15)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    width: '100%',
+  },
+  departureInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    color: '#999',
+    fontSize: '0.8rem',
+    marginTop: '0.5rem',
+  },
+  loadTime: {
+    color: '#00ff41',
+  },
+  duration: {
+    color: '#00ffff',
+  },
+  preFlightChecks: {
+    marginBottom: '1.5rem',
+  },
+  preFlightTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 1rem 0',
+  },
+  checksList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+  },
+  systemCheck: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  checkValue: {
+    marginLeft: 'auto',
+    fontSize: '0.8rem',
+    color: '#00ff41',
+    fontWeight: 500,
+  },
+  cargoSummary: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  summaryTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+  },
+  summaryGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
+  },
+  summaryItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    color: '#999',
+    fontSize: '0.8rem',
+  },
+  summaryValue: {
+    color: '#e0e0e0',
+    fontWeight: 500,
+    fontSize: '0.8rem',
+  },
+  transitCard: {
+    backgroundColor: 'rgba(0, 255, 65, 0.03)',
+    border: '1px solid rgba(0, 255, 65, 0.15)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    width: '100%',
+  },
+  transitStatus: {
+    marginBottom: '1.5rem',
+  },
+  transitTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 1rem 0',
+  },
+  statusIndicators: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  indicator: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    fontSize: '0.9rem',
+    color: '#e0e0e0',
+  },
+  indicatorLight: {
+    width: '8px',
+    height: '8px',
+    backgroundColor: '#00ff41',
+    borderRadius: '50%',
+    animation: 'pulse 2s ease-in-out infinite',
+  },
+  transitDetails: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  transitInfo: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    marginBottom: '1rem',
+  },
+  infoBlock: {
+    textAlign: 'center',
+  },
+  infoLabel: {
+    fontSize: '0.7rem',
+    color: '#999',
+    marginBottom: '0.25rem',
+  },
+  infoValue: {
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    color: '#e0e0e0',
+  },
+  cargoConfirmation: {
+    textAlign: 'center',
+  },
+  confirmationText: {
+    fontSize: '1rem',
+    color: '#e0e0e0',
+    margin: '0 0 0.5rem 0',
+    lineHeight: '1.4',
+  },
+  cargoSpecs: {
+    fontSize: '0.8rem',
+    color: '#999',
+    fontStyle: 'italic',
   },
   routePlanCard: {
     backgroundColor: 'rgba(0, 255, 65, 0.03)',
@@ -858,11 +2014,76 @@ const styles = {
     padding: '1.5rem',
     width: '100%',
   },
-  legendContainer: {
+  routeStats: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    marginTop: '1rem',
+  },
+  routeStat: {
+    textAlign: 'center',
+  },
+  statValue: {
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    marginBottom: '0.25rem',
+  },
+  statLabel: {
+    fontSize: '0.7rem',
+    color: '#999',
+  },
+  optimizationBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    backgroundColor: 'rgba(0, 255, 65, 0.2)',
+    color: '#00ff41',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '12px',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+  },
+  routeAnalytics: {
+    marginTop: '1rem',
+  },
+  analyticsSection: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '1rem',
+    border: '1px solid rgba(0, 255, 65, 0.1)',
+  },
+  analyticsTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+  },
+  analyticsGrid: {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.5rem',
+  },
+  analyticsItem: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '0.8rem',
+    color: '#e0e0e0',
+  },
+  legendContainer: {
     marginTop: '1rem',
+  },
+  legendTitle: {
+    fontFamily: 'Orbitron, sans-serif',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    color: '#00ff41',
+    margin: '0 0 0.75rem 0',
+  },
+  legendGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
   },
   legendItem: {
     display: 'flex',
