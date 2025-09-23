@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import logoImage from '../logos/FreightTrixHeader_Graphic.png';
+import LiveMap from '../trimble/LiveMap';
 
 const LoadDetails = ({ loadData, onBack }) => {
   const [activeSection, setActiveSection] = useState('overview');
@@ -164,26 +165,22 @@ const LoadDetails = ({ loadData, onBack }) => {
     <div style={styles.sectionContent}>
       <div style={styles.routeMap}>
         <div style={styles.mapContainer}>
-          <div style={styles.mapPlaceholder}>
-            <svg width="100%" height="200" viewBox="0 0 400 200" style={styles.routeSvg}>
-              {/* Route line */}
-              <path d="M 20 100 Q 100 50 200 100 T 380 100" stroke="#00ff41" strokeWidth="3" fill="none" strokeDasharray="10,5"/>
-              
-              {/* Origin marker */}
-              <circle cx="20" cy="100" r="8" fill="#00ffff"/>
-              <text x="20" y="130" textAnchor="middle" fill="#00ffff" fontSize="10">Chicago</text>
-              
-              {/* Destination marker */}
-              <circle cx="380" cy="100" r="8" fill="#ff00ff"/>
-              <text x="380" y="130" textAnchor="middle" fill="#ff00ff" fontSize="10">Denver</text>
-              
-              {/* Truck icon at current position */}
-              <g transform={`translate(${20 + (360 * truckProgress / 100)}, 100)`}>
-                <rect x="-8" y="-4" width="16" height="8" fill="#00ff41" rx="2"/>
-                <circle cx="8" cy="4" r="2" fill="#00ff41" opacity="0.8"/>
-              </g>
-            </svg>
-          </div>
+          <LiveMap
+            height={220}
+            showRoute={true}
+            shipment={{
+              id: loadData?.id || 'FT-2024-1247',
+              origin: 'Chicago, IL',
+              destination: 'Denver, CO',
+              truck: 'FT-2024-TR-456',
+              driver: 'Assigned',
+              currentLocation: `Progress ${Math.round(truckProgress)}%`,
+              temperature: '4.2°C',
+              progress: Math.max(0, Math.min(100, truckProgress)),
+              onTime: true,
+              eta: 'Dec 15, 2:30 PM'
+            }}
+          />
         </div>
         
         <div style={styles.routeDetails}>
@@ -809,6 +806,10 @@ const styles = {
   },
   mapContainer: {
     marginBottom: '2rem',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: '8px',
+    border: '1px solid rgba(0, 255, 65, 0.2)',
+    overflow: 'hidden',
   },
   mapPlaceholder: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',

@@ -1,5 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import logoImage from '../logos/FreightTrixHeader_Graphic.png';
+import LiveMap from '../trimble/LiveMap';
+
+// ⬆️ top of file, under imports
+const PRE_TRIP_REQUIREMENTS = Object.freeze([
+  { task: 'Sweep floor clear of debris', completed: false },
+  { task: 'Get acidic trailer washout to prevent odors', completed: false },
+  { task: 'Trailer must be completely empty prior to pickup', completed: false },
+  { task: 'Bring trailer seal', completed: false },
+  { task: 'Print paperwork prior to pickup', completed: false },
+  { task: 'Precondition trailer to 41F prior to pickup', completed: false },
+]);
+
+// helper keeps any existing completion state but enforces items + order
+const normalizeRequirements = (incoming = []) => {
+  const byTask = new Map(incoming.map(r => [r.task, r]));
+  return PRE_TRIP_REQUIREMENTS.map(r => byTask.get(r.task) ?? { ...r });
+};
+
+// Approx FreshNet pickup coords (you can tweak)
+const PICKUP_COORDS = { lat: 41.8881, lng: -87.6298 }; // Chicago, IL
+
+// NEW: brand blue pulled from FTRX logo ("Load")
+const LOGO_BLUE = '#00A3FF';
 
 const LoadWorkflow = ({
   currentStep: propCurrentStep,
@@ -12,22 +35,28 @@ const LoadWorkflow = ({
   const [currentStep, setCurrentStep] = useState(propCurrentStep || 'loadOffer');
   const [showPulse, setShowPulse] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [requirements, setRequirements] = useState(propRequirements || [
-    { task: 'Load 1 pallet with reference #US3111U5', completed: false },
-    { task: 'Take pictures of the cargo loaded and secured on your truck', completed: false },
-    { task: 'Take picture of the trailer seal', completed: false },
-    { task: 'Take picture of the trailer temperature setting', completed: false },
-    { task: 'Shipper signs first and last name on paperwork with in and out time', completed: false }
-  ]);
+  const [driverPos, setDriverPos] = useState({ lat: 41.881, lng: -87.64 }); // fallback Loop
+  
+  const [requirements, setRequirements] = useState(() =>
+    normalizeRequirements(propRequirements)
+  );
 
   // Update internal state when props change
   useEffect(() => {
     if (propCurrentStep) setCurrentStep(propCurrentStep);
   }, [propCurrentStep]);
 
+  // Keep it in sync if props change (but still normalized & ordered):
   useEffect(() => {
-    if (propRequirements) setRequirements(propRequirements);
+    setRequirements(normalizeRequirements(propRequirements));
   }, [propRequirements]);
+  
+  // (Optionally) when the user first lands on “Pre-Trip Requirements”:
+  useEffect(() => {
+    if (currentStep === 'accepted') {
+      setRequirements(prev => normalizeRequirements(prev));
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     const pulseInterval = setInterval(() => {
@@ -42,6 +71,16 @@ const LoadWorkflow = ({
       clearInterval(pulseInterval);
       clearInterval(timeInterval);
     };
+  }, []);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}, // ignore errors; keep fallback
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
   }, []);
 
   // Centralized step change handler
@@ -202,7 +241,7 @@ const LoadWorkflow = ({
             <div style={styles.cargoGrid}>
               <div style={styles.cargoItem}>
                 <span style={styles.cargoLabel}>Weight:</span>
-                <span style={styles.cargoValue}>42,500 lbs</span>
+                <span style={styles.cargoValue}>2850 lbs</span>
               </div>
               <div style={styles.cargoItem}>
                 <span style={styles.cargoLabel}>Commodity:</span>
@@ -242,7 +281,7 @@ const LoadWorkflow = ({
           </svg>
           <span style={styles.successText}>Load Accepted</span>
         </div>
-        <h2 style={styles.stepTitle}>Pre-Pickup Requirements</h2>
+        <h2 style={{ ...styles.stepTitle, fontSize: '1.6rem' }}>Pre-Trip Requirements</h2>
         <div style={styles.timeStamp}>
           Accepted: {currentTime.toLocaleTimeString()} • Load #FT-2024-1247
         </div>
@@ -250,7 +289,7 @@ const LoadWorkflow = ({
 
       <div style={styles.requirementsCard}>
         <div style={styles.progressHeader}>
-          <h3 style={styles.requirementsTitle}>Compliance Checklist</h3>
+          <h3 style={{ ...styles.requirementsTitle, fontSize: '1.3rem' }}>Compliance Checklist</h3>
           <div style={styles.completionBadge}>
             {requirements.filter(req => req.completed).length}/{requirements.length} Complete
           </div>
@@ -271,10 +310,7 @@ const LoadWorkflow = ({
                 )}
               </div>
               <div style={styles.requirementContent}>
-                <span style={{
-                  ...styles.requirementText,
-                  color: req.completed ? '#e0e0e0' : '#999'
-                }}>{req.task}</span>
+                <span style={styles.requirementText}>{req.task}</span>
                 {req.completed && (
                   <div style={styles.completedTime}>
                     Completed: {currentTime.toLocaleTimeString()}
@@ -314,7 +350,7 @@ const LoadWorkflow = ({
         <h2 style={styles.stepTitle}>Navigate to Pickup Location</h2>
         <div style={styles.navigationInfo}>
           <div style={styles.addressContainer}>
-            <div style={styles.facilityName}>FreshNet Solutions</div>
+            <div style={styles.facilityName}>FreshNet Warehouse</div>
             <p style={styles.addressText}>2150 W Fulton St</p>
             <p style={styles.addressText}>Chicago, IL 60612</p>
           </div>
@@ -350,31 +386,24 @@ const LoadWorkflow = ({
           </div>
         </div>
         <div style={styles.mapContainer}>
-          <svg width="100%" height="200" viewBox="0 0 400 200" style={styles.routeSvg}>
-            {/* Geofenced area */}
-            <rect x="10" y="40" width="380" height="120" fill="rgba(0, 255, 65, 0.1)" stroke="#00ff41" strokeWidth="2" strokeDasharray="5,5" rx="10"/>
-            
-            {/* Route line */}
-            <path d="M 20 100 Q 100 50 200 100 T 380 100" stroke="#00ff41" strokeWidth="4" fill="none"/>
-            
-            {/* Traffic indicators */}
-            <circle cx="150" cy="80" r="3" fill="#00ff41"/>
-            <circle cx="250" cy="120" r="3" fill="#ffff00"/>
-            <circle cx="320" cy="100" r="3" fill="#00ff41"/>
-            
-            {/* Origin marker */}
-            <circle cx="20" cy="100" r="8" fill="#00ffff"/>
-            <text x="20" y="130" textAnchor="middle" fill="#00ffff" fontSize="10">Current</text>
-            
-            {/* Destination marker */}
-            <circle cx="380" cy="100" r="8" fill="#ff00ff"/>
-            <text x="380" y="130" textAnchor="middle" fill="#ff00ff" fontSize="10">Pickup</text>
-            
-            {/* Current position */}
-            <circle cx="20" cy="100" r="5" fill="#00ff41">
-              <animate attributeName="r" values="5;8;5" dur="2s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
+          <LiveMap
+            height={220}
+            showRoute={true}
+            shipment={{
+              id: 'nav-pickup-FT-2024-1247',
+              origin: 'Current Position',
+              destination: 'FreshNet Warehouse, 2150 W Fulton St, Chicago, IL 60612',
+              originCoords: driverPos,            // ← explicit coordinates (new)
+              destCoords: PICKUP_COORDS,            // ← explicit coordinates (new)
+              truck: 'FT-2024-TR-456',
+              driver: 'You',
+              currentLocation: 'En route to pickup',
+              temperature: '—',
+              progress: 0,
+              onTime: true,
+              eta: '—'
+            }}
+          />
         </div>
         
         <div style={styles.routeDetails}>
@@ -409,13 +438,13 @@ const LoadWorkflow = ({
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#00ff41" strokeWidth="2"/>
             <circle cx="12" cy="10" r="3" stroke="#00ff41" strokeWidth="2"/>
           </svg>
-          <span>Located at FreshNet Solutions</span>
+          <span>Located at FreshNet Warehouse</span>
         </div>
       </div>
 
       <div style={styles.arrivalCard}>
         <div style={styles.facilityInfo}>
-          <h3 style={styles.facilityTitle}>FreshNet Solutions</h3>
+          <h3 style={styles.facilityTitle}>FreshNet Warehouse</h3>
           <div style={styles.facilityDetails}>
             <p style={styles.addressText}>2150 W Fulton St, Chicago, IL 60612</p>
             <div style={styles.arrivalTime}>
@@ -433,13 +462,13 @@ const LoadWorkflow = ({
           </div>
           <div style={styles.promptText}>
             <h4 style={styles.promptTitle}>Confirm On-Site Arrival</h4>
-            <p style={styles.promptDesc}>System detected you've arrived at the pickup location. Please confirm your on-site status to begin the loading process.</p>
+            <p style={styles.promptDesc}>System detected you've arrived at the pickup location. You're on site — please confirm to begin the loading process.</p>
           </div>
         </div>
       </div>
 
       <div style={styles.questionCard}>
-        <p style={styles.questionText}>Have you arrived on site for pickup at FreshNet Solutions in Chicago, IL?</p>
+        <p style={styles.questionText}>Have you arrived on site for pickup at FreshNet Warehouse in Chicago, IL?</p>
       </div>
 
       <div style={styles.actionButtons}>
@@ -519,9 +548,9 @@ const LoadWorkflow = ({
   const renderCompliance = () => (
     <div style={styles.stepContainer}>
       <div style={styles.headerCard}>
-        <h2 style={styles.stepTitle}>Loading Compliance Protocol</h2>
+        <h2 style={styles.stepTitle}>Loading compliance protocol</h2>
         <div style={styles.facilityBadge}>
-          <span>Loading Dock #7 • FreshNet Solutions</span>
+          <span>Loading Dock #7 • FreshNet Warehouse</span>
         </div>
       </div>
 
@@ -544,16 +573,42 @@ const LoadWorkflow = ({
               <div style={styles.complianceContent}>
                 <span style={styles.complianceText}>{req.task}</span>
                 <div style={styles.complianceDetails}>
-                  {index === 0 && <span>Weight: 2,850 lbs • Dimensions: 48"x40"x60"</span>}
-                  {index === 1 && <span>High-resolution photos required for insurance</span>}
-                  {index === 2 && <span>Seal #: TMP-847592 • Verified integrity</span>}
-                  {index === 3 && <span>Maintain 2-8°C throughout transport</span>}
-                  {index === 4 && <span>Sarah Johnson • In: 08:15 • Out: 09:42</span>}
+                  {index === 0 && <span>Debris removed • Floor swept</span>}
+                  {index === 1 && <span>Use acidic washout to prevent odors</span>}
+                  {index === 2 && <span>Verify trailer is empty (no pallets/returns)</span>}
+                  {index === 3 && <span>Seal on hand • Record seal # at shipper</span>}
+                  {index === 4 && <span>BOL printed and ready</span>}
+                  {index === 5 && <span>Reefer preconditioned to 41°F (pre-cool ~30 min)</span>}
                 </div>
               </div>
               <div style={styles.statusBadge}>Verified</div>
             </div>
           ))}
+          {/* NEW: bottom requirement (red, unchecked, upload photo) */}
+          <div style={styles.complianceItem}>
+            <div
+              style={{
+                ...styles.complianceCheckmark,
+                backgroundColor: 'transparent',
+                border: '2px solid #ff0040'
+              }}
+            />
+            <div style={styles.complianceContent}>
+              <span style={styles.complianceText}>Shipper signs Bill of Lading</span>
+              <div style={styles.complianceDetails}>
+                Upload a photo of the signed BOL before departure
+              </div>
+            </div>
+            <div
+              style={{
+                ...styles.statusBadge,
+                backgroundColor: '#ff0040',
+                color: '#fff'
+              }}
+            >
+              Upload Photo
+            </div>
+          </div>
         </div>
 
         <div style={styles.additionalChecks}>
@@ -655,7 +710,7 @@ const LoadWorkflow = ({
             </div>
             <div style={styles.summaryItem}>
               <span style={styles.summaryLabel}>Weight:</span>
-              <span style={styles.summaryValue}>2,850 lbs</span>
+              <span style={styles.summaryValue}>2850 lbs</span>
             </div>
             <div style={styles.summaryItem}>
               <span style={styles.summaryLabel}>Value:</span>
@@ -749,7 +804,7 @@ const LoadWorkflow = ({
               Loaded and rolling with 1 pallet for reference #US3111U5
             </p>
             <div style={styles.cargoSpecs}>
-              <span>Weight: 2,850 lbs • Value: $2.3M • Temperature Controlled</span>
+              <span>Weight: 2850 lbs • Value: $2.3M • Temperature Controlled</span>
             </div>
           </div>
         </div>
@@ -775,8 +830,8 @@ const LoadWorkflow = ({
             <span style={styles.statLabel}>Est. Transit</span>
           </div>
           <div style={styles.routeStat}>
-            <span style={styles.statValue}>4 stops</span>
-            <span style={styles.statLabel}>Approved</span>
+            <span style={styles.statValue}>ETA</span>
+            <span style={styles.statLabel}>Tomorrow morning at 8am</span>
           </div>
         </div>
       </div>
@@ -795,56 +850,22 @@ const LoadWorkflow = ({
         </div>
         
         <div style={styles.mapContainer}>
-          <svg width="100%" height="280" viewBox="0 0 400 280" style={styles.routeSvg}>
-            {/* Main geofenced route corridor */}
-            <path d="M 20 140 Q 100 90 200 140 T 380 140" stroke="rgba(0, 255, 65, 0.3)" strokeWidth="30" fill="none"/>
-            <path d="M 20 140 Q 100 90 200 140 T 380 140" stroke="#00ff41" strokeWidth="4" fill="none"/>
-            
-            {/* Waypoints */}
-            <circle cx="120" cy="110" r="6" fill="#00ffff"/>
-            <text x="120" y="100" textAnchor="middle" fill="#00ffff" fontSize="8">Rest Area</text>
-            
-            <circle cx="200" cy="140" r="6" fill="#00ffff"/>
-            <text x="200" y="130" textAnchor="middle" fill="#00ffff" fontSize="8">Fuel Stop</text>
-            
-            <circle cx="280" cy="165" r="6" fill="#00ffff"/>
-            <text x="280" y="155" textAnchor="middle" fill="#00ffff" fontSize="8">Inspection</text>
-            
-            {/* Red zones (avoid stopping) */}
-            <circle cx="150" cy="80" r="20" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
-            <text x="150" y="85" textAnchor="middle" fill="#ff0040" fontSize="7">HIGH THEFT</text>
-            
-            <circle cx="320" cy="190" r="20" fill="rgba(255, 0, 64, 0.2)" stroke="#ff0040" strokeWidth="2"/>
-            <text x="320" y="195" textAnchor="middle" fill="#ff0040" fontSize="7">RESTRICTED</text>
-            
-            {/* Green zones (approved stops) */}
-            <rect x="90" y="190" width="60" height="20" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
-            <text x="120" y="203" textAnchor="middle" fill="#00ff41" fontSize="7">TRUCK STOP</text>
-            
-            <rect x="240" y="70" width="50" height="20" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="2" rx="5"/>
-            <text x="265" y="83" textAnchor="middle" fill="#00ff41" fontSize="7">SERVICE</text>
-            
-            {/* Origin and destination */}
-            <circle cx="20" cy="140" r="10" fill="#00ffff"/>
-            <text x="20" y="170" textAnchor="middle" fill="#00ffff" fontSize="10">Chicago</text>
-            <text x="20" y="180" textAnchor="middle" fill="#00ffff" fontSize="8">Origin</text>
-            
-            <circle cx="380" cy="140" r="10" fill="#ff00ff"/>
-            <text x="380" y="170" textAnchor="middle" fill="#ff00ff" fontSize="10">Denver</text>
-            <text x="380" y="180" textAnchor="middle" fill="#ff00ff" fontSize="8">Destination</text>
-            
-            {/* Current truck position */}
-            <circle cx="50" cy="135" r="7" fill="#00ff41">
-              <animate attributeName="r" values="7;10;7" dur="2s" repeatCount="indefinite"/>
-            </circle>
-            <text x="50" y="125" textAnchor="middle" fill="#00ff41" fontSize="8">YOU</text>
-            
-            {/* Weather indicators */}
-            <g transform="translate(160, 45)">
-              <circle cx="0" cy="0" r="8" fill="rgba(255, 255, 0, 0.3)" stroke="#ffff00" strokeWidth="1"/>
-              <text x="0" y="15" textAnchor="middle" fill="#ffff00" fontSize="6">RAIN</text>
-            </g>
-          </svg>
+          <LiveMap
+            height={280}
+            showRoute={true}
+            shipment={{
+              id: 'route-plan-FT-2024-1247',
+              origin: 'Chicago, IL',
+              destination: 'Denver, CO',
+              truck: 'FT-2024-TR-456',
+              driver: '—',
+              currentLocation: 'Chicago, IL',
+              temperature: '4.2°C',
+              progress: 10,           // seed some progress if you like
+              onTime: true,
+              eta: 'Dec 15, 2:30 PM'
+            }}
+          />
         </div>
 
         <div style={styles.routeAnalytics}>
@@ -870,7 +891,7 @@ const LoadWorkflow = ({
                   <circle cx="12" cy="12" r="10" stroke="#00ff41" strokeWidth="2"/>
                   <path d="M12 6v6l4 2" stroke="#00ff41" strokeWidth="2"/>
                 </svg>
-                <span>Optimal fuel stops identified for cost savings</span>
+                <span>Optimal, secure fuel stops identified for cost savings</span>
               </div>
               <div style={styles.analyticsItem}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{marginRight: '0.5rem'}}>
@@ -1517,9 +1538,10 @@ const styles = {
   mapContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: '8px',
-    padding: '1rem',
+    // padding: '1rem', // Padding removed to allow map to fill container
     border: '1px solid rgba(0, 255, 65, 0.2)',
     marginBottom: '1rem',
+    overflow: 'hidden', // Ensure map corners are rounded
   },
   routeSvg: {
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
@@ -1727,9 +1749,11 @@ const styles = {
     flex: 1,
   },
   requirementText: {
-    fontSize: '0.9rem',
+    fontSize: '0.95rem',
     lineHeight: '1.4',
     marginBottom: '0.25rem',
+    color: LOGO_BLUE,
+    fontWeight: 500,
   },
   completedTime: {
     fontSize: '0.7rem',
@@ -1808,9 +1832,10 @@ const styles = {
   },
   complianceText: {
     fontSize: '0.9rem',
-    color: '#e0e0e0',
+    color: LOGO_BLUE,
     lineHeight: '1.4',
     marginBottom: '0.25rem',
+    fontWeight: 500,
   },
   complianceDetails: {
     fontSize: '0.7rem',
