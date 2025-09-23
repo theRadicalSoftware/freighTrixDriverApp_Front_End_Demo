@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import logoImage from '../logos/FreightTrixHeader_Graphic.png';
 import LoadWorkFlow from './LoadWorkFlow';
 import DriverSettings from './DriverSettings';
+import LiveMap from '../trimble/LiveMap';
 
 
 const DriverDashboard = ({ 
@@ -23,6 +24,19 @@ const DriverDashboard = ({
       clearInterval(pulseInterval);
     };
   }, []);
+
+  const progressFromStep = (step) => {
+    switch (step) {
+      case 'navigation': return 5;
+      case 'arrival': return 10;
+      case 'confirmed': return 15;
+      case 'compliance': return 20;
+      case 'rolling': return 25;
+      case 'rollingConfirmed': return 40;
+      case 'routePlan': return 55;
+      default: return 0; // loadOffer / accepted
+    }
+  };
 
   // Update the navItems to show notifications when load is active
   const navItems = [
@@ -325,44 +339,23 @@ const DriverDashboard = ({
                   </div>
                   
                   <div style={styles.mapContainer}>
-                    <svg width="100%" height="250" viewBox="0 0 500 250" style={styles.routeSvg}>
-                      {/* Geofenced route corridor */}
-                      <path d="M 30 125 Q 150 80 250 125 T 470 125" stroke="rgba(0, 255, 65, 0.3)" strokeWidth="25" fill="none"/>
-                      <path d="M 30 125 Q 150 80 250 125 T 470 125" stroke="#00ff41" strokeWidth="4" fill="none"/>
-                      
-                      {/* Traffic conditions */}
-                      <circle cx="180" cy="95" r="4" fill="#00ff41"/>
-                      <text x="180" y="85" textAnchor="middle" fill="#00ff41" fontSize="8">CLEAR</text>
-                      
-                      <circle cx="320" cy="140" r="4" fill="#ffff00"/>
-                      <text x="320" y="155" textAnchor="middle" fill="#ffff00" fontSize="8">MODERATE</text>
-                      
-                      {/* Waypoints */}
-                      <rect x="110" y="185" width="40" height="15" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="1" rx="3"/>
-                      <text x="130" y="195" textAnchor="middle" fill="#00ff41" fontSize="7">FUEL</text>
-                      
-                      <rect x="380" y="80" width="40" height="15" fill="rgba(0, 255, 65, 0.2)" stroke="#00ff41" strokeWidth="1" rx="3"/>
-                      <text x="400" y="90" textAnchor="middle" fill="#00ff41" fontSize="7">REST</text>
-                      
-                      {/* Weather indicator */}
-                      <g transform="translate(280, 60)">
-                        <circle cx="0" cy="0" r="8" fill="rgba(255, 255, 0, 0.3)" stroke="#ffff00" strokeWidth="1"/>
-                        <text x="0" y="20" textAnchor="middle" fill="#ffff00" fontSize="6">RAIN</text>
-                      </g>
-                      
-                      {/* Origin and destination */}
-                      <circle cx="30" cy="125" r="8" fill="#00ffff"/>
-                      <text x="30" y="145" textAnchor="middle" fill="#00ffff" fontSize="9">Chicago</text>
-                      
-                      <circle cx="470" cy="125" r="8" fill="#ff00ff"/>
-                      <text x="470" y="145" textAnchor="middle" fill="#ff00ff" fontSize="9">Denver</text>
-                      
-                      {/* Current position with animation */}
-                      <circle cx="180" cy="95" r="6" fill="#00ff41">
-                        <animate attributeName="r" values="6;9;6" dur="2s" repeatCount="indefinite"/>
-                      </circle>
-                      <text x="180" y="75" textAnchor="middle" fill="#00ff41" fontSize="8">YOU</text>
-                    </svg>
+                    <LiveMap
+                      height={250}
+                      showRoute={true}
+                      shipment={{
+                        id: loadWorkflowState.loadData?.id || 'route-tab',
+                        origin: loadWorkflowState.loadData?.origin || 'Chicago, IL',
+                        destination: loadWorkflowState.loadData?.destination || 'Denver, CO',
+                        // The LiveMap already sets the Trimble API key you used in the other demo.
+                        truck: 'FT-2024-TR-456',
+                        driver: 'Assigned',
+                        currentLocation: 'En route',
+                        temperature: '4.2°C',
+                        progress: progressFromStep(loadWorkflowState.currentStep),
+                        onTime: true,
+                        eta: 'Dec 15, 2:30 PM'
+                      }}
+                    />
                   </div>
                   
                   <div style={styles.routeMetrics}>
@@ -1266,9 +1259,10 @@ const styles = {
   mapContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: '8px',
-    padding: '1rem',
+    // padding: '1rem', // Removed padding to allow map to fill
     border: '1px solid rgba(0, 255, 65, 0.2)',
     marginBottom: '1rem',
+    overflow: 'hidden', // Added to contain map corners
   },
   routeSvg: {
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
