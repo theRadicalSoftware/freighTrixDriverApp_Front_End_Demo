@@ -12,6 +12,46 @@ const PRE_TRIP_REQUIREMENTS = Object.freeze([
   { task: 'Precondition trailer to 41F prior to pickup', completed: false },
 ]);
 
+
+// Planned waypoints along Chicago ➜ Denver (approximate, along I-88/I-80)
+const PLANNED_WAYPOINTS = Object.freeze([
+  { id: 'wp-aurora',    name: 'Planned Waypoint – Aurora, IL',     lat: 41.7606, lng: -88.3087 },
+  { id: 'wp-dekalb',    name: 'Planned Waypoint – DeKalb, IL',     lat: 41.9330, lng: -88.7504 },
+  { id: 'wp-quad',      name: 'Planned Waypoint – Quad Cities, IL',lat: 41.4904, lng: -90.5103 },
+  { id: 'wp-iowacity',  name: 'Planned Waypoint – Iowa City, IA',  lat: 41.6611, lng: -91.5302 },
+]);
+
+// Restricted zones (red translucent rectangles). Coordinates are [lng, lat] and ring is closed.
+const RESTRICTED_ZONES = Object.freeze([
+  {
+    id: 'rz-chicago',
+    name: 'High-Theft – South Chicago',
+    polygon: [
+      [-87.8400, 41.7700], [-87.8400, 41.9200],
+      [-87.6000, 41.9200], [-87.6000, 41.7700],
+      [-87.8400, 41.7700]
+    ]
+  },
+  {
+    id: 'rz-dekalb',
+    name: 'Watch-List – DeKalb',
+    polygon: [
+      [-88.9000, 41.8300], [-88.9000, 42.0000],
+      [-88.6000, 42.0000], [-88.6000, 41.8300],
+      [-88.9000, 41.8300]
+    ]
+  },
+  {
+    id: 'rz-quad',
+    name: 'Watch-List – Quad Cities',
+    polygon: [
+      [-90.7500, 41.4000], [-90.7500, 41.6500],
+      [-90.3500, 41.6500], [-90.3500, 41.4000],
+      [-90.7500, 41.4000]
+    ]
+  }
+]);
+
 // helper keeps any existing completion state but enforces items + order
 const normalizeRequirements = (incoming = []) => {
   const byTask = new Map(incoming.map(r => [r.task, r]));
@@ -850,9 +890,13 @@ const LoadWorkflow = ({
         </div>
         
         <div style={styles.mapContainer}>
-          <LiveMap
+        <LiveMap
             height={280}
             showRoute={true}
+            // NEW: overlays for this screen
+            plannedWaypoints={PLANNED_WAYPOINTS}
+            restrictedZones={RESTRICTED_ZONES}
+            showGeofenceCorridor={true}
             shipment={{
               id: 'route-plan-FT-2024-1247',
               origin: 'Chicago, IL',
@@ -861,11 +905,12 @@ const LoadWorkflow = ({
               driver: '—',
               currentLocation: 'Chicago, IL',
               temperature: '4.2°C',
-              progress: 10,           // seed some progress if you like
+              progress: 10,
               onTime: true,
               eta: 'Dec 15, 2:30 PM'
             }}
           />
+
         </div>
 
         <div style={styles.routeAnalytics}>
@@ -969,12 +1014,6 @@ const LoadWorkflow = ({
             ))}
           </div>
         ))}
-      </div>
-
-      {/* Header */}
-      <div style={styles.header}>
-        <img src={logoImage} alt="FreighTrix" style={styles.logoImage} />
-        <div style={styles.headerTitle}>Load Management</div>
       </div>
 
       {/* Main Content */}
