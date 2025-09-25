@@ -12,45 +12,69 @@ const PRE_TRIP_REQUIREMENTS = Object.freeze([
   { task: 'Precondition trailer to 41F prior to pickup', completed: false },
 ]);
 
-
-// Planned waypoints along Chicago ➜ Denver (approximate, along I-88/I-80)
-const PLANNED_WAYPOINTS = Object.freeze([
-  { id: 'wp-aurora',    name: 'Planned Waypoint – Aurora, IL',     lat: 41.7606, lng: -88.3087 },
-  { id: 'wp-dekalb',    name: 'Planned Waypoint – DeKalb, IL',     lat: 41.9330, lng: -88.7504 },
-  { id: 'wp-quad',      name: 'Planned Waypoint – Quad Cities, IL',lat: 41.4904, lng: -90.5103 },
-  { id: 'wp-iowacity',  name: 'Planned Waypoint – Iowa City, IA',  lat: 41.6611, lng: -91.5302 },
+// Small rectangle helper for restricted zones (about ~5–8 km across)
+const rect = (lng, lat, dLng = 0.060, dLat = 0.045) => ([
+  [lng - dLng, lat - dLat],
+  [lng - dLng, lat + dLat],
+  [lng + dLng, lat + dLat],
+  [lng + dLng, lat - dLat],
+  [lng - dLng, lat - dLat], // close ring
 ]);
 
-// Restricted zones (red translucent rectangles). Coordinates are [lng, lat] and ring is closed.
+
+
+
+// Planned waypoints (BLUE) – per client sketch
+// 1) West of Davenport (Walcott, IA – I-80 Truck Stop vicinity)
+// 3) Midway between Davenport, IA and DeKalb, IL
+const PLANNED_WAYPOINTS = Object.freeze([
+  {
+    id: 'wp-walcott',
+    name: 'Planned Waypoint – West of Davenport (Walcott, IA)',
+    lat: 41.6128,
+    lng: -90.7782,
+  },
+  {
+    id: 'wp-mid-davenport-dekalb',
+    name: 'Planned Waypoint – Midpoint (Sterling/Dixon area, IL)',
+    lat: 41.7266,
+    lng: -89.6640,
+  },
+]);
+
+
+// Restricted zones (RED) – tight boxes centered on requested points
+// 2) Davenport, IA
+// 4) DeKalb, IL
+// 5) ORD / Bensenville, IL (slightly west of Chicago)
+// 6) Chicago proper (as close to the lake as possible)
 const RESTRICTED_ZONES = Object.freeze([
   {
-    id: 'rz-chicago',
-    name: 'High-Theft – South Chicago',
-    polygon: [
-      [-87.8400, 41.7700], [-87.8400, 41.9200],
-      [-87.6000, 41.9200], [-87.6000, 41.7700],
-      [-87.8400, 41.7700]
-    ]
+    id: 'rz-davenport',
+    name: 'Restricted – Davenport, IA',
+    // Davenport: 41.5236, -90.5776
+    polygon: rect(-90.5776, 41.5236),
   },
   {
     id: 'rz-dekalb',
-    name: 'Watch-List – DeKalb',
-    polygon: [
-      [-88.9000, 41.8300], [-88.9000, 42.0000],
-      [-88.6000, 42.0000], [-88.6000, 41.8300],
-      [-88.9000, 41.8300]
-    ]
+    name: 'Restricted – DeKalb, IL',
+    // DeKalb: 41.9295, -88.7504
+    polygon: rect(-88.7504, 41.9295),
   },
   {
-    id: 'rz-quad',
-    name: 'Watch-List – Quad Cities',
-    polygon: [
-      [-90.7500, 41.4000], [-90.7500, 41.6500],
-      [-90.3500, 41.6500], [-90.3500, 41.4000],
-      [-90.7500, 41.4000]
-    ]
-  }
+    id: 'rz-ord-bensenville',
+    name: 'Restricted – ORD / Bensenville, IL',
+    // O'Hare area: 41.9742, -87.9073
+    polygon: rect(-87.9073, 41.9742),
+  },
+  {
+    id: 'rz-chicago-core',
+    name: 'Restricted – Chicago (Downtown/Lakefront)',
+    // Near lakefront downtown: ~41.8850, -87.6200
+    polygon: rect(-87.6200, 41.8850, 0.045, 0.035), // a bit tighter to hug lakefront
+  },
 ]);
+
 
 // helper keeps any existing completion state but enforces items + order
 const normalizeRequirements = (incoming = []) => {
